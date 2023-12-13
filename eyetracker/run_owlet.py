@@ -9,8 +9,6 @@ import math
 import pandas as pd
 import numpy as np
 import cv2
-import librosa
-from scipy import signal
 import subprocess
 import os
 import sys
@@ -67,30 +65,13 @@ class OWLET(object):
         sub_file , ext = os.path.splitext(calib_file)
         csv_file = "CSV_Results/" + str(sub_file) + "_settings.csv"
         
-        if Path(csv_file).is_file():
+        if False:
             df = pd.read_csv(csv_file)
-            df.loc[0, "min_xval"]
-            self.calib_starttime, self.calib_endtime, self.min_xval, self.max_xval, self.range_xvals, self.middle_x = df.iloc[0, 0:6]
-            
-            self.min_yval, self.max_yval, self.range_yvals, self.middle_y, self.range_yvals_left, \
-                self.range_yvals_right, self.min_yval_left, self.min_yval_right = df.iloc[0, 6:14]
-                
-            self.min_xval2, self.max_xval2, self.range_xvals2, self.middle_x2 = df.iloc[0, 14:18]
-            
-            self.mean, self.maximum, self.minimum, self.eyearea = df.iloc[0, 18:22]
-            
-            self.mean_eyeratio, self.maxeyeratio, self.mineyeratio = df.iloc[0, 22:25]
+
         
         else:
             calib = LookingCalibration()
-            ### FIX THIS ###
-            # calib_audio = "/Users/werchd01/Dropbox/ORCA/Calibration.wav" 
-            # self.convert_video_to_audio_ffmpeg(sub)
-            # match_audio(self, calib_file, task):
             
-            # if self.found_match:
-            #     calib_starttime, calib_endtime, sub_audio_length, task_audio_length = self.find_offset(calib_file, calib_audio)
-            # else:
             calib_starttime = 0
             calib_endtime = 30000
             calib.calibrate_eyes(calib_file, calib_starttime)
@@ -111,33 +92,6 @@ class OWLET(object):
             self.eyearea = calib.get_eye_area()
             
             self.mean_eyeratio, self.maxeyeratio, self.mineyeratio = calib.get_eye_area_ratio()
-            colnames = ['calib_starttime', 'calib_endtime', 'min_xval',	'max_xval',	'range_xvals',	'middle_x',	'min_yval',	'max_yval',	'range_yvals',	
-                        'middle_y',	'range_yvals_left',	'range_yvals_right',	'min_yval_left',	'min_yval_right',	
-                        'min_xval2',	'max_xval2',	'range_xvals2',	'middle_x2',	'mean',	'maximum',	
-                        'minimum',	'eyearea',	'mean_eyeratio',	'maxeyeratio',	'mineyeratio']
-            
-            data = [self.calib_starttime, self.calib_endtime, self.min_xval, self.max_xval, self.range_xvals, self.middle_x,
-                    self.min_yval, self.max_yval, self.range_yvals, self.middle_y, self.range_yvals_left,
-                    self.range_yvals_right, self.min_yval_left, self.min_yval_right,
-                    self.min_xval2, self.max_xval2, self.range_xvals2, self.middle_x2,
-                    self.mean, self.maximum, self.minimum,
-                    self.eyearea, self.mean_eyeratio, self.maxeyeratio, self.mineyeratio]
-    
-            calib_settings = pd.DataFrame([ data], columns =colnames)
-            
-            
-           # calib_settings.to_csv(csv_file, index = False)
-            storage_client = storage.Client()
-            bucket = storage_client.get_bucket("<mybucketname>")
-
-            blob=bucket.blob(csv_file)
-
-            blob.upload_from_string(
-                        data=df,
-                        content_type='text/csv')
-                        
-           # self.calib_statistics(cwd, calib_file, subDir)
-        
 
         
     def initialize_eye_tracker(self, width, height):
@@ -187,64 +141,6 @@ class OWLET(object):
             xval = sum(gazelist1)/len(gazelist1)
             yval = sum(gazelist2)/len(gazelist2)
         return xval, yval
-    
-    
-    def convert_video_to_audio_ffmpeg(self, video_file, output_ext="wav"):
-        """Converts video to audio directly using `ffmpeg` command
-        with the help of subprocess module"""
-            
-        filename, ext = os.path.splitext(video_file)
-        
-        subprocess.call(["ffmpeg", "-y", "-i", video_file, f"{filename}.{output_ext}"], 
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.STDOUT)
-        
-
-    def find_offset(self, subject_audio, task_audio):
-        """
-        Returns the offset between the subject video and the start of the task
-        based on matching the audio patterns using FFT and cross correlations
-        
-        Arguments:
-            subject_audio (wav file): The audio file name of the subject audio
-            task_audio (wav file): The audio file name of the task audio
-            window (int): The window in which to search for a match within
-            
-        Returns:
-            The time until the task begins in the subject video
-        """
-        y_within, sr_within = librosa.load(subject_audio, sr=None)
-        y_find, sr_find = librosa.load(task_audio, sr=sr_within)
-    
-        c = signal.correlate(y_within, y_find, mode='valid', method='fft')
-        peak = np.argmax(c)
-        start = round(peak / sr_within, 2) * 1000
-        sub_audio_length = librosa.get_duration(y_within, sr_within) * 1000
-        task_audio_length = librosa.get_duration(y_find, sr_find) * 1000
-        
-        if c[peak] < 90:
-            start = 0
-        end = start + (task_audio_length)
-
-        return start, end, sub_audio_length, task_audio_length
-
-    def match_audio(self, sub, task):
-        
-        self.convert_video_to_audio_ffmpeg(sub)
-        self.convert_video_to_audio_ffmpeg(task)
-        
-        subaudio = sub[0:-4] + ".wav" 
-        taskaudio = task[0:-4] + ".wav" 
-        self.found_match = False
-        
-        start, end, length, task_length = self.find_offset(subaudio, taskaudio)
-
-        if (end-2000) <= length and start != 0:
-            self.start = start
-            self.end = end
-            self.found_match = True
-        os.remove(subaudio)
-        return self.found_match
    
     def initialize_cur_gaze_list(self):
         """Initializes lists for the current gaze positions"""
@@ -419,14 +315,6 @@ class OWLET(object):
             self.initialize_potential_gaze_list()
         else:
             self.append_cur_gaze_list(cur_x, curx2, cur_y, cur_x_left, cur_x_right, cur_y_left, cur_y_right)
-            
-            # uncomment if left/right gaze is desired for VPC or Listening while Looking tasks
-            # if curx2_original > (self.middle_x2 + self.range_xvals2/4) or (cur_x > (self.middle_x + self.range_xvals)/4):
-            #     self.text = "Right"
-            # elif curx2_original < (self.middle_x2 - .06) or (cur_x < (self.middle_x - .06)):
-            #     self.text = "Left"
-            # else:
-            #     self.text = ""
             self.num_looks_away = 0
             
         if self.haslooked == False and cur_x is not None:
@@ -609,7 +497,7 @@ class OWLET(object):
 
 
 
-        self.initialize_eye_tracker(cwd, 960, 540)
+        self.initialize_eye_tracker(960, 540)
 
         
         ret, frame = cap.read()

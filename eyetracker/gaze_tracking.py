@@ -28,10 +28,9 @@ class GazeTracking(object):
         self.rightpoint = None
         self.leftright_eyeratio = ratio
         # _predictor is used to get facial landmarks of a given face
-        model_path = os.path.abspath(os.path.join(cwd, "eyetracker/shape_predictor_68_face_landmarks.dat"))
+        model_path = os.path.abspath("eyetracker/shape_predictor_68_face_landmarks.dat")
         self._predictor = dlib.shape_predictor(model_path)
-        # eyepath = os.path.abspath(os.path.join(cwd, "=haarcascade_eye.xml"))
-        # self.eye_classifier = cv2.CascadeClassifier(eyepath)
+
 
     @property
     def pupils_located(self):
@@ -53,15 +52,6 @@ class GazeTracking(object):
         
         # this may improve video quality in poor lighting conditions
         # frame = cv2.addWeighted(frame, 1, frame, .7, -20) 
-
-        # cols, rows = frame.shape
-        # indices = np.where(frame < 230)
-        # indices = np.logical_and(frame > 50, frame < 230)
-        # brightness = np.sum(frame[indices]) / (255 * cols * rows)
-        # ratio = brightness / .5
-        # frame2 = frame.copy()
-        # if ratio < 1:
-        #     frame2 = cv2.convertScaleAbs(frame2, alpha = 1/ratio, beta = 0)
         
         faces = self._face_detector(frame)
             
@@ -134,8 +124,8 @@ class GazeTracking(object):
             faces = self._face_detector(self.frame)
             x = faces[self.face_index].left()
             y = faces[self.face_index].top()
-            w = faces[self.face_index].right() # - x
-            h = faces[self.face_index].bottom() # - y
+            w = faces[self.face_index].right() 
+            h = faces[self.face_index].bottom() 
             return (x, y, w, h)
         except IndexError:
             return (None, None, None, None)
@@ -202,7 +192,7 @@ class GazeTracking(object):
         is rotated, estimated by the eye area ratio
         """
         if self.pupils_located:
-            left, right = self.horizontal_gaze() #left = (self.eye_left.pupil.x ) / self.eye_left.width # (self.eye_left.center[0] * 2)
+            left, right = self.horizontal_gaze() 
             area_ratio = (self.eye_left.area /self.eye_right.area) / self.leftright_eyeratio
             scaled_avg = ((left + right)/2)*area_ratio
             return (scaled_avg)
@@ -216,8 +206,8 @@ class GazeTracking(object):
         values imputed from prior videos.
         """
         if self.pupils_located:
-            pupil_left = (self.eye_left.pupil.x ) / self.eye_left.width # (self.eye_left.center[0] * 2) 
-            pupil_right = (self.eye_right.pupil.x ) /  self.eye_right.width #  (self.eye_right.center[0] * 2)
+            pupil_left = (self.eye_left.pupil.x ) / self.eye_left.width 
+            pupil_right = (self.eye_right.pupil.x ) /  self.eye_right.width 
             return pupil_left, pupil_right
         else:
             return None, None
@@ -233,7 +223,7 @@ class GazeTracking(object):
     def eye_ratio(self):
         """Returns the average width/height (blinking ratio) of left/right eyes"""
         if self.pupils_located:      
-            blinking_ratio = (self.eye_left.blinking + self.eye_right.blinking)/2 # (left_ratio + right_ratio)/2
+            blinking_ratio = (self.eye_left.blinking + self.eye_right.blinking)/2   
         else:
             blinking_ratio = 1
         return blinking_ratio
@@ -248,8 +238,7 @@ class GazeTracking(object):
             left_coords, r_left = self.pupil_left_coords()
             right_coords, r_right = self.pupil_right_coords()
             return True, left_coords, right_coords
-            # cv2.circle(frame, left_coords, 3, color, 1)
-            # cv2.circle(frame, right_coords, 3, color, 1)    
+ 
         return False, None, None
             
             # uncomment to display points around the eyes and face

@@ -24,24 +24,7 @@ import os
 import sys
 from gaze_tracking import GazeTracking
 from calibration import LookingCalibration
-# import llvmlite
-# import custom_librosa
-# import sklearn
-# import sklearn.neighbors._typedefs
-# import sklearn.neighbors.typedefs
-# import sklearn.utils._typedefs
-# import sklearn.utils.typedefs
-# import cython
-# import sklearn.neighbors.typedefs
-# import sklearn.neighbors.quad_tree
-# import sklearn.neighbors._quad_tree
-# import sklearn.tree
-# import sklearn.tree._utils
-# import sklearn.utils._cython_blas
-# import sklearn.utils._weight_vector
-# import sklearn.utils.weight_vector
-# import sklearn.neighbors._partition_nodes
-# import sklearn.neighbors.partition_nodes
+
 
 
 class Calibration_Accuracy(object):
@@ -149,85 +132,6 @@ class Calibration_Accuracy(object):
             xval = sum(gazelist1)/len(gazelist1)
             yval = sum(gazelist2)/len(gazelist2)
         return xval, yval
-    
-    
-    def convert_video_to_audio_ffmpeg(self, video_file, output_ext="wav"):
-        """Converts video to audio directly using `ffmpeg` command
-        with the help of subprocess module"""
-        # ffmpeg_path = "ffmpeg/ffmpeg"
-        # if hasattr(sys, '_MEIPASS'):
-        #     mypath = os.path.join(sys._MEIPASS, ffmpeg_path)
-        # else:
-        #     mypath = os.path.join(os.path.abspath(""), ffmpeg_path)
-        # # print (mypath)
-            
-        filename, ext = os.path.splitext(video_file)
-        # print(filename)
-        
-        subprocess.call(["ffmpeg", "-y", "-i", video_file, f"{filename}.{output_ext}"], 
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.STDOUT)
-        
-        # subprocess.run([mypath, "-i", "-y", video_file, f"{filename}.{output_ext}"], 
-        #                 stdout=subprocess.DEVNULL,
-        #                 stderr=subprocess.STDOUT)   
-    
-
-    def find_offset(self, subject_audio, task_audio):
-        """
-        Returns the offset between the subject video and the start of the task
-        based on matching the audio patterns using FFT and cross correlations
-        
-        Arguments:
-            subject_audio (wav file): The audio file name of the subject audio
-            task_audio (wav file): The audio file name of the task audio
-            window (int): The window in which to search for a match within
-            
-        Returns:
-            The time until the task begins in the subject video
-        """
-        y_within, sr_within = librosa.load(subject_audio, sr=None)
-        y_find, sr_find = librosa.load(task_audio, sr=sr_within)
-    
-        c = signal.correlate(y_within, y_find, mode='valid', method='fft')
-        peak = np.argmax(c)
-        start = round(peak / sr_within, 2) * 1000
-        sub_audio_length = librosa.get_duration(y_within, sr_within) * 1000
-        task_audio_length = librosa.get_duration(y_find, sr_find) * 1000
-        
-        if c[peak] < 90:
-            start = 0
-        end = start + (task_audio_length)
-
-        return start, end, sub_audio_length, task_audio_length
-
-    def match_audio(self, sub, taskaudio):
-
-        self.convert_video_to_audio_ffmpeg(sub)
-        # self.convert_video_to_audio_ffmpeg(task)
-        # self.convert_video_to_audio_ffmpeg(calibvid)
-        sub_file = sub[0:-4] + ".wav" #/Users/werchd01/Documents/GitHub/OWLET/174_12_MAAP.wav"
-        #task_file = "/Users/werchd01/Cecile.wav" #task[0:-4] + ".wav" #"/Users/werchd01/Documents/GitHub/OWLET/MAAP.wav"
-        self.found_match = True
-        
-        start, end, length, task_length = self.find_offset(sub_file, taskaudio)
-        print(start, end)
-
-        if (end-2000) > length:
-            ## task video is longer than subject video
-            self.found_match = False
-            self.start = 0
-            self.end = 1000000000
-        elif start == 0:
-            self.found_match = False
-            self.start = 0
-            self.end = 1000000000
-        else:
-            self.found_match = True
-            self.start = start
-            self.end = end
-        
-        return self.found_match
    
     def initialize_cur_gaze_list(self):
         """Initializes lists for the current gaze positions"""
@@ -519,15 +423,8 @@ class Calibration_Accuracy(object):
 
                 self.initialize_eye_tracker(cwd, 960, 540)
                 self.calibrate_gaze(video, False, cwd)
-                
-                taskAudio = os.path.abspath(os.path.join(cwd, "orca_calibration.wav"))
-                self.convert_video_to_audio_ffmpeg(video)
-                subAudio = video[0:-4] + ".wav"
-                self.start, self.end, sub_audio_length, task_audio_length = self.find_offset(subAudio, taskAudio)
                 self.start = 0
-                
-                os.remove(subAudio)
-        
+                        
                 while (cap.isOpened()):
                     frameId = cap.get(1) #current frame number
                     ret, frame = cap.read()
