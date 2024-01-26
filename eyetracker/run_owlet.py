@@ -18,7 +18,7 @@ from gaze_tracking import GazeTracking
 from calibration import LookingCalibration
 from pathlib import Path
 import tempfile
-from google.cloud import storage, vision
+from google.cloud import storage
 
 class OWLET(object):
     
@@ -450,74 +450,72 @@ class OWLET(object):
         # cv2.imwrite(img_file, img)        
         
 
-    def process_subject(videofile):
-        task_file = None
-    
+    def process_subject(self):
 
-        sub_file, ext = os.path.splitext(videofile)
-        sub = os.path.basename(sub_file)
-        ret2 = True
+        storage_client = storage.Client("owlet-app")
+        bucket = storage_client.get_bucket("owlet-app.appspot.com")
+        blob = bucket.blob("videos/2023-11-20T02:05:23.106Z.mp4")
+        print("running")
+
+        _, videofile = tempfile.mkstemp()
+        blob.download_to_filename(videofile)
+
+        #sub_file, ext = os.path.splitext(videofile)
         taskname = ""
-        if task_file is not None:
-            taskname = "_" + str(os.path.basename(task_file)[0:-4])
-        outfile = str(sub_file) + taskname + "_annotated.mp4"                
+           
         cap = cv2.VideoCapture(videofile)   # capturing the baby video from the given path
+        width = int(cap.get(3))
+        height = int(cap.get(4))
         fps = cap.get(5)
+        print(width, height)
+        df = pd.DataFrame(columns = ['Time', 'Frame', 'X-coord', 'Y-coord', 'Tag', 'Trial'])
 
         if fps > 30: fps2 = 30
         else: fps2  = fps
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        if task_file is not None:
-            cap2 = cv2.VideoCapture(task_file)   # capturing the task video from the given path
-            out = cv2.VideoWriter(outfile, fourcc, fps2, (1920, 540))
-        else: 
-            out = cv2.VideoWriter(outfile, fourcc, fps2, (960, 540))
+
             
         # Video processing stuff
-        outfile = ('/tmp/video.mp4')
-        out = cv2.VideoWriter(outfile, fourcc, fps2, (960, 540))
+      #  _, outfile = tempfile.mkstemp()
+        #out = cv2.VideoWriter(outfile, fourcc, fps2, (width, height))
 
         frameval = math.ceil(fps) // 30 # downsamples videos to 30 fps
         if frameval < 1: frameval = 1
         
-        output = StringIO()
-        csv_writer = writer(output)
+     
+        #csv_writer = writer(output)
         
-        colnames = ['Subject_ID', 'Time', 'Frame', 'X-coord', 'Y-coord', 'Tag', 'Trial']
-        csv_file = "CSV_results/" + str(sub) + taskname + ".csv"
-        
-        
-        storage_client = storage.Client()
-        bucket = storage_client.get_bucket("<mybucketname>")
-        
-        
-        my_file = bucket.blob(csv_file)
-        my_file.upload_from_string(colnames, content_type="text/plain")
+       # csv_file = "/tmp/cloudruntest.csv"
+      #  _, csv_file = tempfile.mkstemp()
+       # csv_writer.writerow(colnames)
+
+       
+        #my_file = bucket.blob(csv_file)
+        #my_file.upload_from_string(colnames, content_type="text/plain")
+        #my_file.upload_from_string(colnames, content_type="text/plain")
 
 
-
+        count=0
         self.initialize_eye_tracker(960, 540)
 
         
         ret, frame = cap.read()
-        height, width, _ = frame.shape
-        resize = (height != 540 or width!=960)
+        print("got this far")
+
 
         # show_output=True
         while (cap.isOpened()):
             ret, frame = cap.read()
             frameId = cap.get(1) #current frame number
-            if (ret == False or ret2 == False):
+            if (ret == False):
                 
                 break
             if (frameId % frameval == 0):
                 
                 time = cap.get(cv2.CAP_PROP_POS_MSEC)
                 
-                if time >= self.start and time <= self.end:
-                    if resize: frame = cv2.resize(frame, (960,540))                        
-                    
+                if time >= self.start and time <= self.end:                    
                     
                     draw_pupils, left_coords, right_coords  = self.gaze.refresh(frame)
                     frame = self.determine_gaze(frame)
@@ -526,38 +524,44 @@ class OWLET(object):
                         cv2.circle(frame, left_coords, 3, (255, 255, 0), 1)
                         cv2.circle(frame, right_coords, 3, (255, 255, 0), 1)  
                     
-                    # concat frames
-                    if task_file is not None:
-                        ret2, frame2 = cap2.read()   
-                        if ret2==False: break
-                        frame2 = cv2.resize(frame2, (960,540))
-                        final = cv2.hconcat([frame, frame2])
-                    else: final = frame
                         
-                    final, xcoord, ycoord, text = self.update_frame(final, time)
+                    final, xcoord, ycoord, text = self.update_frame(frame, time)
+                    df.loc[count] = [time, frameId, xcoord, ycoord, text, ""]
+                    count+=1
 
-                    out.write(final)
+                #    out.write(final)
 
-                    mystr = [sub, time, frameId, xcoord, ycoord, text, ""]
+                #    mystr = [time, frameId, xcoord, ycoord, text, ""]
                     # write next row to google cloud storage
-                    my_file.upload_from_string(mystr, content_type="text/plain")
-
-                    
-                    
-                    key = cv2.waitKey(1)
-                    # press 'q' to quit
-                    if key == ord('q'):
-                        break                           
+                 #   csv_writer.writerow(colnames)
+                    #my_file.upload_from_string(mystr, content_type="text/plain")                    
                     
         cap.release()    
-        out.release()
+      #  output.seek(0) 
+        #out.release()
 
-        google_outfile = "Videos/" + str(sub) + ".mp4"
+      #  google_outfile = "cloudruntest.mp4"
         
 
-        blob=bucket.blob(out)
+      #  blob=bucket.blob(out)
 
-        blob.upload_from_filename(google_outfile)
+      #  blob.upload_from_filename(google_outfile)
+
+
+       # google_outfile_csv = "/tmp/outputtest.csv"
+       # bucketName.file(filename).createWriteStream({resumable: false, gzip: true})
+        bucket.blob('upload_test/test.csv').upload_from_string(df.to_csv(), 'text/csv')
+
+
+        
+        
+        
+
+       # blob2=bucket.blob(output)
+
+
+
+        #blob2.upload_from_filename("csvs/tmp.csv")
                     
         # print("Done: " + sub)
         cv2.destroyAllWindows()
